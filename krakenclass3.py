@@ -22,6 +22,10 @@ class Kraken:
                              "AddOrder": "AddOrder", "Ticker": "Ticker", "OpenOrders": "OpenOrders", "TradesHistory": "TradesHistory", "ClosedOrders": "ClosedOrders"}
         # ; "AddOrder": {"pair": "BCHEUR","type": "buy", "sell", "ordertype": "market"}}
         self.api_parameters = {"none": ""}
+        self.asset = {"Cardano": "ADA", "Bitchoincash": "BCH",
+                      "Algorand": "ALGO", "Monero": "XMR"}
+        self.asset_pair = {"Cardano": "ADAEUR", "Bitcoincash": "BCHEUR",
+                           "Algorand": "ALGOEUR", "Monero": "XMREUR"}
         self.algo_args = {"buy_price": 0, "additional": 0,
                           "sell_price": 0, "counter": 0}
         self.df = ""
@@ -82,21 +86,21 @@ class Kraken:
     def eurVolume(self):
         balance = self.apiBalance()
         euro_balance = balance['result']['ZEUR']
-        ask_price_bch = self.getAskprice()
-        volume = float(euro_balance)/float(ask_price_bch)
+        ask_price = self.getAskprice()
+        volume = float(euro_balance)/float(ask_price)
         volume = format(volume, '.3f')
         return volume
     # determines all available funds(BCH)
 
-    def bchVolume(self):
+    def volume(self):
         balance = self.apiBalance()
-        bch_balance = balance['result']['BCH']
+        bch_balance = balance['result'][f'{self.asset}']
         return bch_balance
 
     def sellAddOrderParameters(self):
         # sells all available funds
-        parameter = "pair=bcheur&type=sell&ordertype=market&volume=" + \
-            self.bchVolume()+"&trading_agreement=agree"
+        parameter = f"pair={self.asset_pair}&type=sell&ordertype=market&volume=" + \
+            self.volume()+"&trading_agreement=agree"
         return parameter
 
     def sellAddOrder(self):
@@ -109,7 +113,7 @@ class Kraken:
 
     def buyAddOrderParameters(self):
         # buys bch worth of all available eur funds
-        parameter = "pair=bcheur&type=buy&ordertype=market&volume=" + \
+        parameter = f"pair={self.asset_pair}&type=buy&ordertype=market&volume=" + \
             str(self.eurVolume())+"&trading_agreement=agree"
         return parameter
 
@@ -130,7 +134,7 @@ class Kraken:
                                  self.api_domain)
 
     def tickerParameters(self):
-        parameter = "?pair=BCHEUR"
+        parameter = f"?pair={self.asset_pair}"
         return parameter
 
     def getTickerInformation(self):
@@ -143,12 +147,12 @@ class Kraken:
 
     def getBidprice(self):
         bidprice = self.getTickerInformation()
-        bidprice = bidprice["result"]["BCHEUR"]["b"][0]
+        bidprice = bidprice["result"][f"{self.asset_pair}"]["b"][0]
         return bidprice
 
     def getAskprice(self):
         askprice = self.getTickerInformation()
-        askprice = askprice["result"]["BCHEUR"]["a"][0]
+        askprice = askprice["result"][f"{self.asset_pair}"]["a"][0]
         return askprice
 
     # def tradesHistoryParameters(self):
@@ -196,60 +200,6 @@ class Kraken:
 
 
 # --------------------------------------------------------------LOG
-
-    # def setArgsCycle(self, input):
-    #     self.algo_args["cycle"] = self.algo_args["cycle"] + 1
-#     def setPosition(self):
-#         # true: cash position
-#         # false: crypto position
-#         current_position = self.algo_args["position"]
-#         if current_position == True:
-#             return self.algo_args["position"] = False
-#         else:
-#             return self.algo_args["position"] = True
-
-#     def getPosition(self):
-#         return self.algo_args["position"]
-
-#     def setArgsBuyprice(self, input):
-#         self.algo_args["buy_price"] = input
-
-#     def setArgsSellprice(self, input):
-#         self.algo_args["sell_price"] = input
-
-#     def getCounter(self):
-#        return self.args_counter
-
-#     def setCounter(self):
-#         get_cycle = self.algo_args["cycle"]
-#        if self.args_counter = 3:
-#             self.args_counter = 0
-#             self.writeToCsv()
-#             self.algo_args = {"cycle": get_cycle, "buy_price": 0, "sell_price": 0,"position": self.algo_args["position"]}
-#         else:
-#             self.args_counter = self.args_counter + 1
-
-#     def writeToCsv(self):
-#         with open('log.csv', 'a', newline='') as file:
-#             writer = csv.writer(file)
-#             writer.writerow([self.algo_args["cycle"],self.algo_args["buy_price"],self.algo_args["sell_price"] ])
-
-#     def readFromCsv(self):
-#         data = []
-#         with open('log.csv', 'r') as file:
-#             reader = csv.reader(file)
-#             for row in reader:
-#                 data = row
-#         return data
-
-#     def readLastEntry(self):
-#         counter = 0
-#         entry_dict = {"cycle": "", "buy_price": "","sell_price": "","position":}
-#         data = self.readFromCsv()
-#         for key in entry_dict:
-#             counter = counter + 1
-#             entry_dict[key] = data[-1][counter-1]
-#         return entry_dict
 # ---------------------------panda csv
     # 1. programm run loadLog() to load the log in dataframe
     # 2.  call loadLastEntry() to extract last algoArgs from log/dataframe
@@ -266,20 +216,9 @@ class Kraken:
     # 4.7 go back and repeat 4.4.
     # loads Log to programm
 
-
     def loadLog(self):
         data_frame = pd.read_csv("log.csv")
         self.df = data_frame
-
-    # safes dataframe to csv
-    # def dataframeToCsv(self):
-    #     data_frame = self.data_frame
-    #     data_frame.to_csv("log.csv", index=False)
-    # adds current arguments to dataframe
-
-    # def algoArgsToDataframe(self):
-    #     args = self.algo_args
-    #     self.data_frame.append(args, ignore_index=True, index=False)
 
     # function to fill self.algo_args and writes it to csv after one trading cycle.With arg_name is the key from self.algo-args
     # and arg the value
@@ -335,42 +274,42 @@ class Kraken:
                 self.algo_args, ignore_index=True)
     # --------------------test functions
 
-    def testBuyAlgo(self):
-        buyprice = 1
-        additional = 9
-        self.setParameter(buyprice)
-        # adding more parameters:
-        # algo_args = {"buy_price": 0,"additional":0 "sell_price": 0, "counter": 0}
-        # additional parameters need to be added consecutively to maintain order since counter represents argument form algo args
-        self.setParameter(additional)
-        self.algo_args["additional"] = additional
-        self.algo_args["buyprice"] = buyprice
+    # def testBuyAlgo(self):
+    #     buyprice = 1
+    #     additional = 9
+    #     self.setParameter(buyprice)
+    #     # adding more parameters:
+    #     # algo_args = {"buy_price": 0,"additional":0 "sell_price": 0, "counter": 0}
+    #     # additional parameters need to be added consecutively to maintain order since counter represents argument form algo args
+    #     self.setParameter(additional)
+    #     self.algo_args["additional"] = additional
+    #     self.algo_args["buyprice"] = buyprice
 
-    def testSellAlgo(self):
-        sellprice = 2
-        self.setParameter(sellprice)
-        self.algo_args["sell_price"] = sellprice
-# # -----------------------------------------------------------ALGO
+# # -----------------------------------------------------------CONTROL
     # returns an array with values down from 0.9 in 0.025 intervals
     # purpose of this function is to guarantee that the asset is bought 10% or more below the price it was sold.
     # the buy_limit and sell_limit functions are desgined to return parameters to handle a trailing stop loss order.
+    def setAsset(self, asset):
+        self.asset = self.asset[f"{asset}"]
+        self.asset_pair = self.asset_pair[f"{asset}"]
+        print(self.asset)
 
     def buy_limit(self, price):
-        const = 0.9
-        limit = [0.9]
+        const = 0.95
+        limit = [0.95]
         while (const > 0.1):
             limit.append(const*price)
-            const = const - 0.025
+            const = const - 0.02
         return limit
     # retruns an array with values up from 1.1 in 0.025 intervarls
     # same purpose as the buy_limit function but only for selling respective asset.
 
     def sell_limit(self, price):
-        const = 1.1
-        limit = [1.1]
+        const = 1.05
+        limit = [1.05]
         while (const < 3):
             limit.append(const*price)
-            const = const + 0.025
+            const = const + 0.02
         return limit
 
     # TODO last_entry should be its own function to check if it should start with buy/sellAlgo function
@@ -387,7 +326,8 @@ class Kraken:
             time.sleep(1.2)
             print("checking buyprice")
             # gets current ask price
-            check_buyprice = self.getAskprice()
+            check_buyprice = float(self.getAskprice())
+            print(check_buyprice)
             # compares current askprice with the the price at which the asset would be a buy.
             # Smaller check_buyprice -> more profit.
             if (check_buyprice < highest_limit):
@@ -431,6 +371,7 @@ class Kraken:
             print("checking sellprice")
             # gets current bidprice
             check_sellprice = float(self.getBidprice())
+            print(check_sellprice)
             # compares current bidprice with possible lowest sellprice
             if(check_sellprice > limit_sell[0]):
                 # if bidprice is above sellprice it sets it as the highes sellprice
@@ -464,11 +405,8 @@ class Kraken:
 
 
 a = Kraken()
-# apiJSON = a.apiBalance()
-# a.loadLog()
-# a.callAlgo()
+a.setAsset("Algorand")
 a.callAlgo()
-# main:
 
 # if bot.getPosition():
 #   bot.sellAlgo()
