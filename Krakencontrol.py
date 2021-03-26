@@ -46,12 +46,14 @@ class KrakenControl(Kraken):
             else:
                 # self.testSellAlgo()
                 self.sellAlgo()
-            print(last_entry)
-            user_input = int(input("Enter 0 to exit program:"))
-            print(user_input)
-            if user_input == 0:
-                self.df.to_csv("log.csv", index=False)
-                loop = False
+            self.df.to_csv("log.csv", index=False)
+            # TODO exit programm code
+            # print(last_entry)
+            # user_input = int(input("Enter 0 to exit program:"))
+            # print(user_input)
+            # if user_input == 0:
+            #     self.df.to_csv("log.csv", index=False)
+            #     loop = False
 
     def calcNextLimit(self, limit, highest_limit):
         for i in range(len(limit)):
@@ -60,10 +62,14 @@ class KrakenControl(Kraken):
                 return calculate_next_limit
 
     def calcExecLimit(self, limit, highest_limit):
-        for i in range(len(limit)):
-            if limit[i] == highest_limit:
-                calculate_execute_limit = limit[i-1]
-                return calculate_execute_limit
+        if limit[0] == highest_limit:
+            calculate_execute_limit = 0
+            return calculate_execute_limit
+        else:
+            for i in range(len(limit)):
+                if limit[i] == highest_limit:
+                    calculate_execute_limit = limit[i-1]
+                    return calculate_execute_limit
 
     def getCurrentData(self, current_state, current_price, highest_limit, limit):
         calculate_next_limit = self.calcNextLimit(limit, highest_limit)
@@ -78,7 +84,10 @@ class KrakenControl(Kraken):
             current_state, current_price, highest_limit, limit)
         clear()
         for key in data:
-            print(f"{key}:  " + f"{data[key]}\n")
+            if data["execute_limit"] == 0 and key == "execute_limit":
+                print(f"{key}:  " + f"Not available\n")
+            else:
+                print(f"{key}:  " + f"{data[key]}\n")
 
     def setParameter(self, arg):
         # gets current counter
@@ -125,7 +134,7 @@ class KrakenControl(Kraken):
 
     def buy_limit(self, price):
         const = 0.95
-        limit = [0.95]
+        limit = [0.95*price]
         while (const > 0.1):
             limit.append(const*price)
             const = const - 0.02
@@ -135,13 +144,14 @@ class KrakenControl(Kraken):
 
     def sell_limit(self, price):
         const = 1.05
-        limit = [1.05]
+        limit = [1.05*price]
         while (const < 3):
             limit.append(const*price)
             const = const + 0.02
         return limit
 
-    # TODO last_entry should be its own function to check if it should start with buy/sellAlgo function
+    # TODO last_entry should be it
+    # s own function to check if it should start with buy/sellAlgo function
 
     def buyAlgo(self):
         last_entry = self.df.iloc[-1].to_dict()
