@@ -62,6 +62,7 @@ class Kraken:
             api_request.add_header("User-Agent", "Kraken REST API")
 
             api_reply = urllib2.urlopen(api_request).read()
+            api_reply = self.api_reply(api_request)
             api_reply = api_reply.decode()
             api_reply = json.loads(api_reply)
             return api_reply
@@ -72,6 +73,13 @@ class Kraken:
             api_reply = api_reply.decode()
             api_reply = json.loads(api_reply)
             return api_reply
+
+    def api_reply(self, api_request):
+        try:
+            api_reply = urllib2.urlopen(api_request).read()
+            return api_reply
+        except URLError:
+            self.api_reply(api_request)
 
     def apiBalance(self):
         return self.callEndpoint(self.api_key,
