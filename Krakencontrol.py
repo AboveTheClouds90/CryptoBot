@@ -9,12 +9,12 @@ import json
 import csv
 import pandas as pd
 from krakenclass3 import *
-from test import *
 import os
 
 
 def clear():
     return os.system('clear')
+# additional
 
 
 class KrakenControl(Kraken):
@@ -32,7 +32,8 @@ class KrakenControl(Kraken):
     def getCounterLastEntry(self):
         # self.df in actual programm
         last_entry = self.df.iloc[-1].to_dict()
-        return last_entry["counter"]
+        last_entry = int(last_entry["counter"])
+        return last_entry
 
     def callAlgo(self):
         loop = True
@@ -43,10 +44,9 @@ class KrakenControl(Kraken):
             if last_entry["buy_price"] == 0:
                 # self.testBuyAlgo()
                 self.buyAlgo()
-            else:
+            elif last_entry["sell_price"] == 0:
                 # self.testSellAlgo()
                 self.sellAlgo()
-            self.df.to_csv("log.csv", index=False)
             # TODO exit programm code
             # print(last_entry)
             # user_input = int(input("Enter 0 to exit program:"))
@@ -54,12 +54,6 @@ class KrakenControl(Kraken):
             # if user_input == 0:
             #     self.df.to_csv("log.csv", index=False)
             #     loop = False
-
-    def calcNextLimit(self, limit, highest_limit):
-        for i in range(len(limit)):
-            if limit[i] == highest_limit:
-                calculate_next_limit = limit[i+1]
-                return calculate_next_limit
 
     def calcExecLimit(self, limit, highest_limit):
         if limit[0] == highest_limit:
@@ -71,17 +65,16 @@ class KrakenControl(Kraken):
                     calculate_execute_limit = limit[i-1]
                     return calculate_execute_limit
 
-    def getCurrentData(self, current_state, current_price, highest_limit, limit):
-        calculate_next_limit = self.calcNextLimit(limit, highest_limit)
+    def getCurrentData(self, current_state, current_price, highest_limit, limit, next_limit):
         calculate_execute_limit = self.calcExecLimit(limit, highest_limit)
         data = {"current_price": current_price, "highest_limit": highest_limit,
-                "next_limit": calculate_next_limit, "execute_limit": calculate_execute_limit,
+                "next_limit": next_limit, "execute_limit": calculate_execute_limit,
                 "current_state": current_state}
         return data
 
-    def printData(self, current_state, current_price, highest_limit, limit):
+    def printData(self, current_state, current_price, highest_limit, limit, next_limit):
         data = self.getCurrentData(
-            current_state, current_price, highest_limit, limit)
+            current_state, current_price, highest_limit, limit, next_limit)
         clear()
         for key in data:
             if data["execute_limit"] == 0 and key == "execute_limit":
@@ -95,7 +88,7 @@ class KrakenControl(Kraken):
         # gets counter length. However the substracts -1 because the counter itself is not an argument
         counter_length = len(self.df.iloc[-1].to_dict().keys())-1
         # checks if it's the last entry
-        if counter < counter_length:
+        if counter < (counter_length-1):
             # counter represents a value from algo_args from left to right with the most left item represented by coutner = 0
             self.df.iloc[-1, counter] = arg
             self.df.iloc[-1, counter_length] = self.df.iloc[-1,
@@ -106,8 +99,8 @@ class KrakenControl(Kraken):
             self.df.iloc[-1, counter] = arg
             self.df.iloc[-1, counter_length] = self.df.iloc[-1,
                                                             counter_length] + 1
-            self.algo_args = {"buy_price": 0, "additional": 0,
-                              "sell_price": 0, "counter": 0}
+            self.df.to_csv("log.csv", index=False)
+            self.algo_args = {"buy_price": 0, "sell_price": 0, "counter": 0}
             self.df = self.df.append(
                 self.algo_args, ignore_index=True)
     # --------------------test functions
@@ -136,22 +129,27 @@ class KrakenControl(Kraken):
         const = 0.95
         limit = [0.95*price]
         while (const > 0.1):
-            limit.append(const*price)
             const = const - 0.02
+            limit.append(const*price)
         return limit
     # retruns an array with values up from 1.1 in 0.025 intervarls
     # same purpose as the buy_limit function but only for selling respective asset.
 
-    def sell_limit(self, price):
-        const = 1.05
-        limit = [1.05*price]
-        while (const < 3):
-            limit.append(const*price)
-            const = const + 0.02
-        return limit
-
     # TODO last_entry should be it
     # s own function to check if it should start with buy/sellAlgo function
+    def getBuyLimits(self, current_price, limit, highest_limit, next_limit):
+        # if highestlimit = limit[0] and is still in intervall between(limt0,limit1)
+        if current_price > limit[1] and highest_limit == limit[0]:
+            return [highest_limit, limit[1]]
+        elif current_price > highest_limit:
+            return [highest_limit, next_limit]
+        else:
+            for idx, value in enumerate(limit):
+                # case: highest limit is lower then the checked value and current price is higher then value -> sets highest limit
+                # if highest limit = limit [0] this wont trigger and go to else because limit[0] is never smaller then limit[0]
+                if current_price <= highest_limit and highest_limit > value:
+                    highest_limit = limit[idx - 1]
+                    return [highest_limit, limit[idx + 1]]
 
     def buyAlgo(self):
         last_entry = self.df.iloc[-1].to_dict()
@@ -161,44 +159,45 @@ class KrakenControl(Kraken):
         limit = self.buy_limit(old_sellprice)
         # highest limit is old_sellprice*0.9 at the start. For refererence check buy_limit function
         highest_limit = limit[0]
-        while(loop_one == True):
+        next_limit = limit[1]
+        while (loop_one == True):
             time.sleep(1.2)
+            #print("checking sellprice")
+            # gets current bidprice
+            current_price = float(self.getAskprice())
+            get_limit = self.getBuyLimits(
+                current_price, limit, highest_limit, next_limit)
+            # print(check_sellprice)
+            self.printData("buying", current_price,
+                           highest_limit, limit, next_limit)
+            # compares current bidprice with possible lowest sellprice
+            if highest_limit <= limit[1] and current_price > highest_limit:
+                self.buyAddOrder()
+                self.setParameter(current_price)
+                loop_one = False
 
-            #print("checking buyprice")
-            # gets current ask price
-            check_buyprice = float(self.getAskprice())
-            # print(check_buyprice)
-            self.printData("buying", check_buyprice, highest_limit, limit)
-            # compares current askprice with the the price at which the asset would be a buy.
-            # Smaller check_buyprice -> more profit.
-            if (check_buyprice < highest_limit):
-                highest_limit = check_buyprice
-            # if the esset is above the buyprice then resume the loop and start again
-            elif (check_buyprice > limit[0]):
-                pass
-            # this is the case if the current askprice is between the highest_limit and limit[0]
-            else:
-                for value in limit:
-                    # TODO is this even necessary? these should be covered thru the other if/else cases
-                    # check_buyprice < value -> must be lower then limit[0]
-                    # check_buyprice > highest limit -> dropped down from anothter limit
-                    if (check_buyprice > value and check_buyprice > highest_limit):
-                        print("buying")
-                        self.printData("buying", check_buyprice,
-                                       highest_limit, limit)
-                        self.buyAddOrder()
-                        # TODO NEEDS WORK SINCE PANDAS CSV CHANGE _--_OLD CODE for reference TODO delete later
-                        # self.setArgsBuyprice(check_buyprice)
-                        # self.setCounter()
-                        # _--_OLD CODE for reference TODO delete later
-                        buy_price = check_buyprice
-                        # logs price at which asset was bought
-                        self.setParameter(buy_price)
-                        # temporarily saves currenz buyprice in algo args.
-                        # TODO needs to be reseted after one cycle
-                        #self.argsetter("buy_price", buy_price)
-                        loop_one = False
-                        # not sure if this condition is necassary because this is the only othercase
+                # not sure if this condition is necassary because this is the only othercase
+    def sell_limit(self, price):
+        const = 1.05
+        limit = [1.05*price]
+        while (const < 3):
+            const = const + 0.02
+            limit.append(const*price)
+        return limit
+
+    def getSellLimits(self, current_price, limit, highest_limit, next_limit):
+        # if highestlimit = limit[0] and is still in intervall between(limt0,limit1)
+        if current_price < limit[1] and highest_limit == limit[0]:
+            return [highest_limit, limit[1]]
+        elif current_price < highest_limit:
+            return [highest_limit, next_limit]
+        else:
+            for idx, value in enumerate(limit):
+                # case: highest limit is lower then the checked value and current price is higher then value -> sets highest limit
+                # if highest limit = limit [0] this wont trigger and go to else because limit[0] is never smaller then limit[0]
+                if current_price >= highest_limit and highest_limit < value:
+                    highest_limit = limit[idx - 1]
+                    return [highest_limit, limit[idx + 1]]
 
     def sellAlgo(self):
         # loads last enty to get the last buyprice
@@ -209,37 +208,39 @@ class KrakenControl(Kraken):
         limit = self.sell_limit(old_buy_price)
         # highest limit is old_buyprice*1.1 at the start. For refererence check buy_limit function
         highest_limit = limit[0]
+        next_limit = limit[1]
         while (loop_one == True):
             time.sleep(1.2)
             #print("checking sellprice")
             # gets current bidprice
-            check_sellprice = float(self.getBidprice())
-            # print(check_sellprice)
-            self.printData("buying", check_sellprice, highest_limit, limit)
+            current_price = float(self.getBidprice())
+            get_limit = self.getSellLimits(
+                current_price, limit, highest_limit, next_limit)
+           # print(check_sellprice)
+            self.printData("selling", current_price,
+                           highest_limit, limit, next_limit)
             # compares current bidprice with possible lowest sellprice
-            if(check_sellprice > limit[0]):
-                # if bidprice is above sellprice it sets it as the highes sellprice
-                highest_limit = check_sellprice
-            # if the esset is under the sellprice then resume the loop and start again
-            elif(check_sellprice < limit[0]):
-                pass
-            # this is the case if the current bidprice is between the highest_limit and limit[0]
-            else:
-                for value in limit:
-                    # TODO same as buyalgo problem
-                    if(check_sellprice < value and check_sellprice < highest_limit):
-                        print("selling")
-                        self.printData("selling", check_sellprice,
-                                       highest_limit, limit)
-                        self.sellAddOrder
-                        # TODO csv pandaas stuff --- OLD CODE
-                        # self.setArgsSellprice(check_sellprice)
-                        # self.setCounter()
-                        # TODO OLDCODE for reference
-                        sell_price = check_sellprice
-                        self.setParameter(sell_price)
-                        #self.argsetter("sell_price", sell_price)
-                        loop_one = False
+            if highest_limit >= limit[1] and current_price < highest_limit:
+                self.sellAddOrder()
+                self.setParameter(current_price)
+                loop_one = False
+
+            # if(current_price > highest_limit):
+            #     # if bidprice is above sellprice it sets it as the highes sellprice
+            #     highest_limit = check_sellprice
+            # # if the esset is under the sellprice then resume the loop and start again
+            # elif(check_sellprice < limit[0]):
+            #     pass
+            # # this is the case if the current bidprice is between the highest_limit and limit[0]
+            # elif check_sellprice < highest_limit and check_sellprice > limit[0]:
+            #     print("selling")
+            #     self.sellAddOrder()
+            #     sell_price = check_sellprice
+            #     self.setParameter(sell_price)
+            #     #self.argsetter("sell_price", sell_price)
+            #     loop_one = False
+            # else:
+            #     pass
     # 1.buy/sellalgo
     # 2. buy algo must return data for sell Algo
     # 3.sellAlgo must return data for buy algo
@@ -247,5 +248,6 @@ class KrakenControl(Kraken):
 
 
 a = KrakenControl(Kraken)
-a.setAsset("Algorand")
+a.setAsset("Cardano")
+# a.callAlgo()
 a.callAlgo()
