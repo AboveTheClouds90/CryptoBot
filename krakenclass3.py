@@ -69,7 +69,7 @@ class Kraken:
         else:
             api_url = api_domain + api_path + api_endpoint + api_parameters
             api_request = urllib2.Request(api_url)
-            api_reply = urllib2.urlopen(api_url).read()
+            api_reply = self.api_reply(api_url) #urllib2.urlopen(api_url).read()
             api_reply = api_reply.decode()
             api_reply = json.loads(api_reply)
             return api_reply
@@ -78,8 +78,9 @@ class Kraken:
         try:
             api_reply = urllib2.urlopen(api_request).read()
             return api_reply
-        except URLError:
-            self.api_reply(api_request)
+        except urllib2.URLError:
+            time.sleep(2)
+            return self.api_reply(api_request)
 
     def apiBalance(self):
         return self.callEndpoint(self.api_key,

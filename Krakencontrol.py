@@ -126,10 +126,10 @@ class KrakenControl(Kraken):
         print(self.asset)
 
     def buy_limit(self, price):
-        const = 0.95
-        limit = [0.95*price]
+        const = 0.98
+        limit = [0.98*price]
         while (const > 0.1):
-            const = const - 0.02
+            const = const - 0.015
             limit.append(const*price)
         return limit
     # retruns an array with values up from 1.1 in 0.025 intervarls
@@ -168,6 +168,8 @@ class KrakenControl(Kraken):
             get_limit = self.getBuyLimits(
                 current_price, limit, highest_limit, next_limit)
             # print(check_sellprice)
+            highest_limit= get_limit[0]
+            next_limit = get_limit[1]
             self.printData("buying", current_price,
                            highest_limit, limit, next_limit)
             # compares current bidprice with possible lowest sellprice
@@ -178,10 +180,10 @@ class KrakenControl(Kraken):
 
                 # not sure if this condition is necassary because this is the only othercase
     def sell_limit(self, price):
-        const = 1.05
-        limit = [1.05*price]
+        const = 1.02
+        limit = [1.02*price]
         while (const < 3):
-            const = const + 0.02
+            const = const + 0.015
             limit.append(const*price)
         return limit
 
@@ -216,6 +218,8 @@ class KrakenControl(Kraken):
             current_price = float(self.getBidprice())
             get_limit = self.getSellLimits(
                 current_price, limit, highest_limit, next_limit)
+            highest_limit = get_limit[0]
+            next_limit = get_limit[1]
            # print(check_sellprice)
             self.printData("selling", current_price,
                            highest_limit, limit, next_limit)
@@ -249,5 +253,5 @@ class KrakenControl(Kraken):
 
 a = KrakenControl(Kraken)
 a.setAsset("Cardano")
-# a.callAlgo()
 a.callAlgo()
+
