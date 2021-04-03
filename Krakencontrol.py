@@ -18,6 +18,13 @@ def clear():
 
 
 class KrakenControl(Kraken):
+    """
+    Attributes
+    ----------
+    super().__int__(): Imports attributes from krakenclass.py
+
+
+    """
 
     def __init__(self, parent):
         super().__init__()
@@ -65,16 +72,16 @@ class KrakenControl(Kraken):
                     calculate_execute_limit = limit[i-1]
                     return calculate_execute_limit
 
-    def getCurrentData(self, current_state, current_price, highest_limit, limit, next_limit):
+    def getCurrentData(self, current_state, current_price, highest_limit, limit, next_limit, max_min_price):
         calculate_execute_limit = self.calcExecLimit(limit, highest_limit)
         data = {"current_price": current_price, "highest_limit": highest_limit,
-                "next_limit": next_limit, "execute_limit": calculate_execute_limit,
+                "next_limit": next_limit, "Highest/lowest_price": max_min_price, "execute_limit": calculate_execute_limit,
                 "current_state": current_state}
         return data
 
-    def printData(self, current_state, current_price, highest_limit, limit, next_limit):
+    def printData(self, current_state, current_price, highest_limit, limit, next_limit, max_min_price):
         data = self.getCurrentData(
-            current_state, current_price, highest_limit, limit, next_limit)
+            current_state, current_price, highest_limit, limit, next_limit, max_min_price)
         clear()
         for key in data:
             if data["execute_limit"] == 0 and key == "execute_limit":
@@ -126,10 +133,10 @@ class KrakenControl(Kraken):
         print(self.asset)
 
     def buy_limit(self, price):
-        const = 0.98
-        limit = [0.98*price]
+        const = 0.985
+        limit = [0.985*price]
         while (const > 0.1):
-            const = const - 0.015
+            const = const - 0.01
             limit.append(const*price)
         return limit
     # retruns an array with values up from 1.1 in 0.025 intervarls
@@ -151,6 +158,12 @@ class KrakenControl(Kraken):
                     highest_limit = limit[idx - 1]
                     return [highest_limit, limit[idx + 1]]
 
+    def determineLowestPrice(self, lowest_price, current_price):
+        if current_price <= lowest_price:
+            return current_price
+        else:
+            return lowest_price
+
     def buyAlgo(self):
         last_entry = self.df.iloc[-1].to_dict()
         old_sellprice = last_entry["sell_price"]
@@ -160,18 +173,21 @@ class KrakenControl(Kraken):
         # highest limit is old_sellprice*0.9 at the start. For refererence check buy_limit function
         highest_limit = limit[0]
         next_limit = limit[1]
+        lowest_price = old_sellprice
         while (loop_one == True):
             time.sleep(1.2)
-            #print("checking sellprice")
+            # print("checking sellprice")
             # gets current bidprice
             current_price = float(self.getAskprice())
             get_limit = self.getBuyLimits(
                 current_price, limit, highest_limit, next_limit)
             # print(check_sellprice)
-            highest_limit= get_limit[0]
+            highest_limit = get_limit[0]
             next_limit = get_limit[1]
+            lowest_price = self.determineLowestPrice(
+                lowest_price, current_price)
             self.printData("buying", current_price,
-                           highest_limit, limit, next_limit)
+                           highest_limit, limit, next_limit, lowest_price)
             # compares current bidprice with possible lowest sellprice
             if highest_limit <= limit[1] and current_price > highest_limit:
                 self.buyAddOrder()
@@ -180,10 +196,10 @@ class KrakenControl(Kraken):
 
                 # not sure if this condition is necassary because this is the only othercase
     def sell_limit(self, price):
-        const = 1.02
-        limit = [1.02*price]
+        const = 1.015
+        limit = [1.015*price]
         while (const < 3):
-            const = const + 0.015
+            const = const + 0.01
             limit.append(const*price)
         return limit
 
@@ -201,6 +217,12 @@ class KrakenControl(Kraken):
                     highest_limit = limit[idx - 1]
                     return [highest_limit, limit[idx + 1]]
 
+    def determineHighestPrice(self, highest_price, current_price):
+        if current_price >= highest_price:
+            return current_price
+        else:
+            return highest_price
+
     def sellAlgo(self):
         # loads last enty to get the last buyprice
         last_entry = self.df.iloc[-1].to_dict()
@@ -211,18 +233,21 @@ class KrakenControl(Kraken):
         # highest limit is old_buyprice*1.1 at the start. For refererence check buy_limit function
         highest_limit = limit[0]
         next_limit = limit[1]
+        highest_price = 0
         while (loop_one == True):
             time.sleep(1.2)
-            #print("checking sellprice")
+            # print("checking sellprice")
             # gets current bidprice
             current_price = float(self.getBidprice())
             get_limit = self.getSellLimits(
                 current_price, limit, highest_limit, next_limit)
             highest_limit = get_limit[0]
             next_limit = get_limit[1]
+            highest_price = self.determineHighestPrice(
+                highest_price, current_price)
            # print(check_sellprice)
             self.printData("selling", current_price,
-                           highest_limit, limit, next_limit)
+                           highest_limit, limit, next_limit, highest_price)
             # compares current bidprice with possible lowest sellprice
             if highest_limit >= limit[1] and current_price < highest_limit:
                 self.sellAddOrder()
@@ -254,4 +279,3 @@ class KrakenControl(Kraken):
 a = KrakenControl(Kraken)
 a.setAsset("Cardano")
 a.callAlgo()
-
