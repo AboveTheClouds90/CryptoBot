@@ -106,10 +106,10 @@ class KrakenControl(Kraken):
             self.df.iloc[-1, counter] = arg
             self.df.iloc[-1, counter_length] = self.df.iloc[-1,
                                                             counter_length] + 1
-            self.df.to_csv("log.csv", index=False)
             self.algo_args = {"buy_price": 0, "sell_price": 0, "counter": 0}
             self.df = self.df.append(
                 self.algo_args, ignore_index=True)
+            self.df.to_csv("log.csv", index=False)
     # --------------------test functions
 
     # def testBuyAlgo(self):
@@ -133,10 +133,10 @@ class KrakenControl(Kraken):
         print(self.asset)
 
     def buy_limit(self, price):
-        const = 0.985
-        limit = [0.985*price]
-        while (const > 0.1):
-            const = const - 0.01
+        const = 0.98
+        limit = [0.98*price]
+        while (const > 0.15):
+            const = const - 0.015
             limit.append(const*price)
         return limit
     # retruns an array with values up from 1.1 in 0.025 intervarls
