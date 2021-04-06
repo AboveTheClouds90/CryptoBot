@@ -154,7 +154,7 @@ class KrakenControl(Kraken):
             for idx, value in enumerate(limit):
                 # case: highest limit is lower then the checked value and current price is higher then value -> sets highest limit
                 # if highest limit = limit [0] this wont trigger and go to else because limit[0] is never smaller then limit[0]
-                if current_price <= highest_limit and highest_limit > value:
+                if current_price <= highest_limit and current_price > value:
                     highest_limit = limit[idx - 1]
                     return [highest_limit, limit[idx + 1]]
 
@@ -213,7 +213,7 @@ class KrakenControl(Kraken):
             for idx, value in enumerate(limit):
                 # case: highest limit is lower then the checked value and current price is higher then value -> sets highest limit
                 # if highest limit = limit [0] this wont trigger and go to else because limit[0] is never smaller then limit[0]
-                if current_price >= highest_limit and highest_limit < value:
+                if current_price >= highest_limit and current_price < value:
                     highest_limit = limit[idx - 1]
                     return [highest_limit, limit[idx + 1]]
 
