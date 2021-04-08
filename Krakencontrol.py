@@ -41,10 +41,14 @@ class KrakenControl(Kraken):
         last_entry = self.df.iloc[-1].to_dict()
         last_entry = int(last_entry["counter"])
         return last_entry
-
+    def setLastEntry(self):
+        #this function is only for setting the first last entry. Every other 
+        #after that is handled by self.setParameter
+        self.last_entry = self.df.iloc[-1].to_dict()
     def callAlgo(self):
         loop = True
         self.loadLog()
+        self.setLastEntry()
         # needs to be replaced with something else in program n.
         while loop == True:
             last_entry = self.df.iloc[-1].to_dict()
@@ -97,19 +101,24 @@ class KrakenControl(Kraken):
         # checks if it's the last entry
         if counter < (counter_length-1):
             # counter represents a value from algo_args from left to right with the most left item represented by coutner = 0
+            self.last_entry["buy_price"] = arg
             self.df.iloc[-1, counter] = arg
             self.df.iloc[-1, counter_length] = self.df.iloc[-1,
                                                             counter_length] + 1
         # else case: last entry
         # sets the arg for last entry and appends new algo args to dataframe
         else:
+            #TODO WORKS FOR NOW NEEDS TO BE REDONE
+            self.last_entry["sell_price"] = arg
             self.df.iloc[-1, counter] = arg
             self.df.iloc[-1, counter_length] = self.df.iloc[-1,
                                                             counter_length] + 1
             self.algo_args = {"buy_price": 0, "sell_price": 0, "counter": 0}
+            self.df.to_csv("log.csv", index=False)
+            #needs to come after .to_csv because other .iloc[-1] would always take 0,0,0 as the last row.
             self.df = self.df.append(
                 self.algo_args, ignore_index=True)
-            self.df.to_csv("log.csv", index=False)
+            
     # --------------------test functions
 
     # def testBuyAlgo(self):
@@ -165,8 +174,8 @@ class KrakenControl(Kraken):
             return lowest_price
 
     def buyAlgo(self):
-        last_entry = self.df.iloc[-1].to_dict()
-        old_sellprice = last_entry["sell_price"]
+        #last_entry = self.df.iloc[-1].to_dict()
+        old_sellprice = self.last_entry["sell_price"]
         loop_one = True
         # limit presents an array of prices which it would be profitable to buy as in regard to the last sellprice
         limit = self.buy_limit(old_sellprice)
@@ -225,8 +234,8 @@ class KrakenControl(Kraken):
 
     def sellAlgo(self):
         # loads last enty to get the last buyprice
-        last_entry = self.df.iloc[-1].to_dict()
-        old_buy_price = last_entry["buy_price"]
+        #last_entry = self.df.iloc[-1].to_dict()
+        old_buy_price = self.last_entry["buy_price"]
         loop_one = True
         # limit presents an array of prices which it would be profitable to sell as in regard to the last buyprice
         limit = self.sell_limit(old_buy_price)

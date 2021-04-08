@@ -29,6 +29,7 @@ class Kraken:
         self.algo_args = {"buy_price": 0, "sell_price": 0, "counter": 0}
         self.df = ""
         self.args_counter = 0
+        self.last_entry= {"buy_price": 0, "sell_price": 0, "counter":0}
 
     def callEndpoint(self, my_api_key, my_api_secret, endpoint, parameters, api_path_self, api_domain_self):
         api_key = my_api_key
@@ -75,12 +76,13 @@ class Kraken:
             return api_reply
 
     def api_reply(self, api_request):
-        try:
-            api_reply = urllib2.urlopen(api_request).read()
-            return api_reply
-        except urllib2.URLError:
-            time.sleep(2)
-            return self.api_reply(api_request)
+        while True:
+            try:
+                api_reply = urllib2.urlopen(api_request).read()
+                return api_reply
+            except:# urllib2.URLError:
+                time.sleep(2)
+                pass
 
     def apiBalance(self):
         return self.callEndpoint(self.api_key,
