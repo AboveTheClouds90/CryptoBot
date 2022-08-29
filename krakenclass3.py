@@ -1,3 +1,4 @@
+from dataclasses import asdict
 import sys
 import platform
 import time
@@ -8,10 +9,18 @@ import urllib.request as urllib2
 import json
 import csv
 import pandas as pd
+import numpy as np
+import math
 
 
+'''
+This class is handling the kraken api. For further information on the kraken Api visit  https://docs.kraken.com/rest/.
+'''
 class Kraken:
+
+    
     def __init__(self):
+        #Apikeys
         self.api_key = "STdsVRArlAEFg36dmQqFqG9ujAKVwBWeLSWHk6wbtswOcqzaIIhs92QA"
         self.api_secret = base64.b64decode(
             "11urJofpMdWEVxmCAEK81jCfzU1tCGP8LOeECxZEiuAGkW6mSpeCQFrA1/P3Igo4ILkGOlveF1fqYtj2piEfBQ==")
@@ -20,16 +29,15 @@ class Kraken:
         self.api_path = {"private": "/0/private/", "public": "/0/public/"}
         self.api_endpoint = {"Balance": "Balance", "DepositStatus": "DepositStatus", "DepositMethods": "DepositMethods",
                              "AddOrder": "AddOrder", "Ticker": "Ticker", "OpenOrders": "OpenOrders", "TradesHistory": "TradesHistory", "ClosedOrders": "ClosedOrders"}
-        # ; "AddOrder": {"pair": "BCHEUR","type": "buy", "sell", "ordertype": "market"}}
         self.api_parameters = {"none": ""}
         self.asset = {"Cardano": "ADA", "Bitchoincash": "BCH",
                       "Algorand": "ALGO", "Monero": "XMR"}
         self.asset_pair = {"Cardano": "ADAEUR", "Bitcoincash": "BCHEUR",
                            "Algorand": "ALGOEUR", "Monero": "XMREUR"}
-        self.algo_args = {"buy_price": 0, "sell_price": 0, "counter": 0}
-        self.df = ""
-        self.args_counter = 0
-        self.last_entry= {"buy_price": 0, "sell_price": 0, "counter":0}
+        self.buy_price =np.array([])
+        self.sell_price = np.array([])
+        self.df_sell = ""
+        self.df_buy = ""
 
     def callEndpoint(self, my_api_key, my_api_secret, endpoint, parameters, api_path_self, api_domain_self):
         api_key = my_api_key
@@ -42,26 +50,20 @@ class Kraken:
         api_path = api_path_self
         if api_path == "/0/private/":
             api_nonce = str(int(time.time()*1000))
-
             api_postdata = api_parameters + "&nonce=" + api_nonce
             api_postdata = api_postdata.encode('utf-8')
-
             api_sha256Data = api_nonce.encode('utf-8') + api_postdata
             api_sha256 = hashlib.sha256(api_sha256Data).digest()
-
             api_hmacSha512Data = api_path.encode(
                 'utf-8') + api_endpoint.encode('utf-8') + api_sha256
             api_hmacsha512 = hmac.new(
                 api_secret, api_hmacSha512Data, hashlib.sha512)
-
             api_sig = base64.b64encode(api_hmacsha512.digest())
-
             api_url = api_domain + api_path + api_endpoint
             api_request = urllib2.Request(api_url, api_postdata)
             api_request.add_header("API-Key", api_key)
             api_request.add_header("API-Sign", api_sig)
             api_request.add_header("User-Agent", "Kraken REST API")
-
             api_reply = urllib2.urlopen(api_request).read()
             api_reply = self.api_reply(api_request)
             api_reply = api_reply.decode()
@@ -78,9 +80,10 @@ class Kraken:
     def api_reply(self, api_request):
         while True:
             try:
+                
                 api_reply = urllib2.urlopen(api_request).read()
                 return api_reply
-            except:# urllib2.URLError:
+            except:# urllib2.URLError: -> handles disconnects
                 time.sleep(2)
                 pass
 
@@ -92,20 +95,37 @@ class Kraken:
                                  self.api_path["private"],
                                  self.api_domain)
     # determines all availabe funds(euro)
-
+    #helpfunction to round down numbers. 
+    #needed because API outputs an insufficient fund error. 
+    #Problem is on new kraken api since assets can still be bought/sold
+    def round_down_string(self,s):    
+        for i in range(len(s)):
+            if s[i] == ".":
+                return float(s[:i+3])
+    #AddBuyOrder
     def eurVolume(self):
         balance = self.apiBalance()
         euro_balance = balance['result']['ZEUR']
+        euro_balance = self.round_down_string(euro_balance) - 1
+        print(euro_balance)
         ask_price = self.getAskprice()
-        volume = float(euro_balance)/float(ask_price)
-        volume = format(volume, '.3f')
+        ask_price = self.round_down_string(ask_price)
+        print(ask_price)
+        #ask_price = ask_price
+        volume = euro_balance/ask_price
+        print(volume)
+        volume = str(self.round_down_string(str(volume)))
+        print(volume)
         return volume
-    # determines all available funds(BCH)
-
+    # determines all available funds(asset)
+    #sellAddOrder:
     def volume(self):
         balance = self.apiBalance()
-        bch_balance = balance['result'][f'{self.asset}']
-        return bch_balance
+        asset_balance = balance['result'][f'{self.asset}']
+        asset_balance = str(self.round_down_string(asset_balance))
+        #asset_balance = str(self.round_down_string(asset_balance))
+        print(asset_balance)
+        return asset_balance
 
     def sellAddOrderParameters(self):
         # sells all available funds
@@ -175,6 +195,7 @@ class Kraken:
     #                              self.tradesHistoryParameters(),
     #                              self.api_path["private"],
     #                              self.api_domain)
+
     def closedOrdersParameters(self):
         return ""
 
@@ -207,21 +228,11 @@ class Kraken:
                                  self.depositMethodsParameters(),
                                  self.api_path["private"],
                                  self.api_domain)
+    def setAsset(self, asset):
+        self.asset = self.asset[f"{asset}"]
+        self.asset_pair = self.asset_pair[f"{asset}"]
+        print(self.asset)
+        
 
 
-# --------------------------------------------------------------LOG
-# ---------------------------panda csv
-    # 1. programm run loadLog() to load the log in dataframe
-    # 2.  call loadLastEntry() to extract last algoArgs from log/dataframe
-    # 3. checkLastEntry() checks the last entry and returns where the programm stoped. Is it a cash or crypto position, also set counter. PURPOSE OF COUNTER: So the program nows when to write data to dataframe with algoArgsTODataframe()
-    # 4. Depending if its cash or crypto.TODO: Check with checkAlgoArgs() cash position -> buyAlgo()
-    # 5. After buying, self.algo_args["buyprice"] = buyprice # counter +1
-    # between 5. and 6. check if funding is available
-    # 6. Call sellAlgo(), after sell, self.algoargs["sellprice"] = sellprice ;coutner +1TODO this probably needs to be done with algoArgs toDATAframe function because of counter -> cycle is over at this point, write to dataframe, safe csv
-    # 7. Go back to step 4 and repeat everything agian
-    # 4.4. If crypto position -> sellAlgo() -> call sellAlgo(),
-    # 4.5 after sell, self.algoargs["sellprice"] = sellprice #coutner +1
-    # prolly check funding
-    # 4.6. call buyAlgo(), after buy self.algo_args["buyprice" = buyproce] ;counter +1; same TODO as in 6.
-    # 4.7 go back and repeat 4.4.
-    # loads Log to programm
+

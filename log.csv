@@ -1,3 +1,1 @@
-buy_price,sell_price,counter
-0.0,0.0,0
-1.12034,1.148197,2
+,current_price,highest_limit,next_limit,Highest/lowest_price,execute_limit,current_state
