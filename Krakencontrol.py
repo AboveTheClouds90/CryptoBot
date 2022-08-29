@@ -123,20 +123,22 @@ class KrakenControl(Kraken):
     #---------------------------------Generating Buy/Sell threshholds as an array
     def buyLimit(self, price):
         const = 0.99
+        threshold_intervall= 0.01
         #first threshold (limit[0]) with price being the last sellprice
         #const needs to be set <1
         limit = [0.99*price]
         #creating array with multiple thresholds at certain intervallsintervalls
         while (const > 0.15):
-            const = const - 0.01
+            const = const - threshold_intervall
             limit.append(const*price)
         return limit
     #analogue to buyLimit()
     def sellLimit(self, price):
         const = 1.01
+        threshold_intervall= 0.01
         limit = [1.01*price]
         while (const < 3):
-            const = const + 0.01
+            const = const + threshold_intervall
             limit.append(const*price)
         return limit
     #-----------------------------------------
