@@ -21,9 +21,9 @@ class Kraken:
     
     def __init__(self):
         #Apikeys
-        self.api_key = "STdsVRArlAEFg36dmQqFqG9ujAKVwBWeLSWHk6wbtswOcqzaIIhs92QA"
+        self.api_key = "Apikey"# add api key
         self.api_secret = base64.b64decode(
-            "11urJofpMdWEVxmCAEK81jCfzU1tCGP8LOeECxZEiuAGkW6mSpeCQFrA1/P3Igo4ILkGOlveF1fqYtj2piEfBQ==")
+            "APIKEYSECRET") # add secret api key
         self.api_nonce = str(int(time.time()*1000))
         self.api_domain = "https://api.kraken.com"
         self.api_path = {"private": "/0/private/", "public": "/0/public/"}
